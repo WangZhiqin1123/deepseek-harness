@@ -1259,9 +1259,9 @@ export class JsonlSessionPersistence extends SessionPersistence {
       const { selected, revision, identity, metadata } = outcome.value
       revisions.push([selected.sourcePath, revision])
       if (identity === undefined || metadata === undefined) continue
-      if (ids.has(metadata.header.id)) {
-        throw new Error(`duplicate JSONL session id "${metadata.header.id}" appears in multiple project directories`)
-      }
+      // A duplicate copy is corrupt relative to the one already listed; skip it
+      // instead of failing every workspace listing that contains it.
+      if (ids.has(metadata.header.id)) continue
       ids.add(metadata.header.id)
       artifacts.push({ ...metadata, path: selected.sourcePath, sourceVersion: selected.sourceVersion, identity })
     }
@@ -1725,7 +1725,7 @@ export class JsonlSessionPersistence extends SessionPersistence {
   ): Promise<void> {
     signal?.throwIfAborted()
     if (expectedId !== undefined && meta.id !== expectedId) {
-      throw new Error(`corrupt session log "${path}": requested id "${expectedId}" does not match header id "${meta.id}"`)
+      throw new SessionPersistenceCorruptionError(`corrupt session log "${path}": requested id "${expectedId}" does not match header id "${meta.id}"`)
     }
     let expectedPath: string
     try {
@@ -1737,10 +1737,10 @@ export class JsonlSessionPersistence extends SessionPersistence {
         this.compression,
       )
     } catch (error) {
-      throw new Error(`corrupt session log "${path}": header id cannot name a storage path`, { cause: error })
+      throw new SessionPersistenceCorruptionError(`corrupt session log "${path}": header id cannot name a storage path`, { cause: error })
     }
     if (path !== expectedPath && !await this.sameFile(path, expectedPath, signal)) {
-      throw new Error(`corrupt session log "${path}": header id "${meta.id}" and cwd identify "${expectedPath}"`)
+      throw new SessionPersistenceCorruptionError(`corrupt session log "${path}": header id "${meta.id}" and cwd identify "${expectedPath}"`)
     }
     signal?.throwIfAborted()
   }
