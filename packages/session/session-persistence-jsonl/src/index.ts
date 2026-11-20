@@ -1260,8 +1260,12 @@ export class JsonlSessionPersistence extends SessionPersistence {
       revisions.push([selected.sourcePath, revision])
       if (identity === undefined || metadata === undefined) continue
       // A duplicate copy is corrupt relative to the one already listed; skip it
-      // instead of failing every workspace listing that contains it.
-      if (ids.has(metadata.header.id)) continue
+      // instead of failing every workspace listing that contains it. Report the
+      // skipped copy so a listing that holds fewer artifacts than files is visible.
+      if (ids.has(metadata.header.id)) {
+        this.ctx.logger.warn(`${name}: session "${metadata.header.id}" is stored more than once; keeping the first copy and skipping "${selected.sourcePath}"`)
+        continue
+      }
       ids.add(metadata.header.id)
       artifacts.push({ ...metadata, path: selected.sourcePath, sourceVersion: selected.sourceVersion, identity })
     }
